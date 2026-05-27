@@ -1021,7 +1021,7 @@ document.querySelectorAll('.opt').forEach(btn => {
   });
 });
 
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxJ9eQbSjugbULbE6TIczmYKvJ9w0e-bA9oydJsP0oI_1-RMiGrUZOlU7r5OqJSFU23/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8y-JvRF9zAGh63gNf6bgsaODWp6a8c7h6StGB90cZQf5MEQJMGrs4q0tZXYJme3mH/exec';
 
 async function registrarResultado(perfil) {
   try {
@@ -1104,14 +1104,29 @@ function mostrarPainel() {
 
 async function carregarDados() {
   document.getElementById('painel-status').textContent = 'Carregando dados...';
-  try {
-    const res = await fetch(SCRIPT_URL);
-    const data = await res.json();
-    renderPainel(data);
-    document.getElementById('painel-status').textContent = '';
-  } catch(e) {
+  
+  // Usa JSONP para evitar bloqueio de CORS
+  const callbackName = 'r8callback_' + Date.now();
+  
+  const timeout = setTimeout(() => {
     document.getElementById('painel-status').textContent = 'Erro ao carregar. Tente novamente.';
-  }
+    delete window[callbackName];
+  }, 10000);
+
+  window[callbackName] = function(data) {
+    clearTimeout(timeout);
+    delete window[callbackName];
+    document.getElementById('painel-status').textContent = '';
+    renderPainel(data);
+    // Remove script tag
+    const el = document.getElementById('jsonp-script');
+    if (el) el.remove();
+  };
+
+  const script = document.createElement('script');
+  script.id = 'jsonp-script';
+  script.src = SCRIPT_URL + '?callback=' + callbackName;
+  document.head.appendChild(script);
 }
 
 function renderPainel(data) {
