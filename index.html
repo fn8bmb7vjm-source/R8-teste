@@ -622,7 +622,7 @@ footer a:hover { color: var(--text); }
 
 <!-- NAV -->
 <nav>
-  <a href="#" class="logo">R<span>8</span></a>
+  <a href="#" class="logo" ondblclick="abrirPainel()" title="">R<span>8</span></a>
   <a href="#inscricao" class="nav-cta">Quero me inscrever</a>
 </nav>
 
@@ -1021,23 +1021,46 @@ document.querySelectorAll('.opt').forEach(btn => {
   });
 });
 
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbzZSJxPKN1CizVh25WcQBmajuu45fPmHmgW4I3JoPHxy33r3aS7BIeyTI90IELrtlEv/exec';
+
+async function registrarResultado(perfil) {
+  try {
+    let cidade = 'Desconhecida', estado = 'Desconhecido', pais = 'Brasil';
+    try {
+      const geo = await fetch('https://ipapi.co/json/');
+      const geoData = await geo.json();
+      cidade = geoData.city || 'Desconhecida';
+      estado = geoData.region || 'Desconhecido';
+      pais   = geoData.country_name || 'Brasil';
+    } catch(e) {}
+    await fetch(SCRIPT_URL, {
+      method: 'POST',
+      mode: 'no-cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ perfil, cidade, estado, pais })
+    });
+  } catch(e) {}
+}
+
 function showResult() {
   document.getElementById('quiz-area').style.display = 'none';
   const sorted = Object.entries(scores).sort((a,b) => b[1]-a[1]);
   const top = sorted[0][0]; const maxS = sorted[0][1];
   const p = profiles[top];
 
-  document.getElementById('res-badge').textContent = '🎯 ' + p.badge;
+  registrarResultado(p.name);
+
+  document.getElementById('res-badge').textContent = '\u{1F3AF} ' + p.badge;
   document.getElementById('res-title').textContent = p.name;
   document.getElementById('res-desc').textContent = p.desc;
   document.getElementById('res-traits').innerHTML = p.traits.map(t => `<span class="res-trait">${t}</span>`).join('');
 
   document.getElementById('res-careers').innerHTML = p.careers.map((c,i) => `
     <div class="res-career ${i===0?'top':''}">
-      <div class="res-career-name">${i===0?'★ ':''}${c.name}</div>
+      <div class="res-career-name">${i===0?'\u2605 ':''}${c.name}</div>
       <div class="res-career-org">${c.org}</div>
       <div class="res-bar-bg"><div class="res-bar" style="width:${c.pct}%"></div></div>
-      <div class="res-pct">${c.pct}% compatível</div>
+      <div class="res-pct">${c.pct}% compat\u00edvel</div>
     </div>`).join('');
 
   document.getElementById('res-runners').innerHTML = sorted.slice(1,4).map(([k,v]) => {
@@ -1052,6 +1075,90 @@ function showResult() {
   document.getElementById('result-box').style.display = 'block';
   document.getElementById('result-box').scrollIntoView({ behavior:'smooth', block:'start' });
 }
+
+// PAINEL SECRETO
+const PAINEL_SENHA = 'r8admin2025';
+
+function abrirPainel() {
+  const senha = prompt('🔐 Senha do painel R8:');
+  if (senha === null) return;
+  if (senha !== PAINEL_SENHA) {
+    alert('❌ Senha incorreta.');
+    return;
+  }
+  document.getElementById('painel-overlay').style.display = 'flex';
+  carregarDados();
+}
+
+function mostrarPainel() {
+  const hash = window.location.hash;
+  const params = new URLSearchParams(window.location.search);
+  if (hash === '#painel' || params.get('painel') === '1') {
+    abrirPainel();
+  }
+}
+
+async function carregarDados() {
+  document.getElementById('painel-status').textContent = 'Carregando dados...';
+  try {
+    const res = await fetch(SCRIPT_URL);
+    const data = await res.json();
+    renderPainel(data);
+    document.getElementById('painel-status').textContent = '';
+  } catch(e) {
+    document.getElementById('painel-status').textContent = 'Erro ao carregar. Tente novamente.';
+  }
+}
+
+function renderPainel(data) {
+  document.getElementById('painel-total').textContent = data.total || 0;
+
+  const perfis = data.perfis || {};
+  const perfisSort = Object.entries(perfis).sort((a,b) => b[1]-a[1]);
+  const maxPerfil = perfisSort[0]?.[1] || 1;
+  document.getElementById('painel-perfis').innerHTML = perfisSort.length === 0
+    ? '<p style="color:#8892a4;font-size:0.85rem;">Nenhum dado ainda.</p>'
+    : perfisSort.map(([nome, qtd]) => `
+      <div style="margin-bottom:12px;">
+        <div style="display:flex;justify-content:space-between;font-size:0.85rem;margin-bottom:4px;">
+          <span style="color:#f0f4ff">${nome}</span>
+          <span style="color:#4f8ef7;font-weight:700">${qtd}</span>
+        </div>
+        <div style="height:6px;background:rgba(255,255,255,0.06);border-radius:3px;">
+          <div style="height:6px;border-radius:3px;background:linear-gradient(90deg,#4f8ef7,#7c5cfc);width:${Math.round((qtd/maxPerfil)*100)}%"></div>
+        </div>
+      </div>`).join('');
+
+  const cidades = data.cidades || {};
+  const cidadesSort = Object.entries(cidades).sort((a,b) => b[1]-a[1]).slice(0,8);
+  document.getElementById('painel-cidades').innerHTML = cidadesSort.length === 0
+    ? '<p style="color:#8892a4;font-size:0.85rem;">Nenhum dado ainda.</p>'
+    : cidadesSort.map(([cidade, qtd]) => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid rgba(255,255,255,0.07);font-size:0.85rem;">
+        <span style="color:#f0f4ff">\u{1F4CD} ${cidade}</span>
+        <span style="color:#4f8ef7;font-weight:700;background:rgba(79,142,247,0.1);padding:2px 10px;border-radius:999px;">${qtd}</span>
+      </div>`).join('');
+}
+
+function fecharPainel() {
+  document.getElementById('painel-overlay').style.display = 'none';
+  window.location.hash = '';
+}
+
+window.addEventListener('hashchange', function() {
+  if (window.location.hash === '#painel') abrirPainel();
+});
+
+// Checa ao carregar
+window.addEventListener('DOMContentLoaded', function() {
+  setTimeout(function() {
+    const hash = window.location.hash;
+    const params = new URLSearchParams(window.location.search);
+    if (hash === '#painel' || params.get('painel') === '1') {
+      abrirPainel();
+    }
+  }, 400);
+});
 
 function restart() {
   Object.keys(scores).forEach(k => scores[k] = 0);
@@ -1073,5 +1180,55 @@ document.querySelectorAll('.reveal').forEach(el => observer.observe(el));
 
 updateUI();
 </script>
+
+<!-- PAINEL SECRETO -->
+<div id="painel-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:9999;align-items:center;justify-content:center;padding:1rem;overflow-y:auto;">
+  <div style="background:#1e2535;border:1px solid rgba(255,255,255,0.07);border-radius:20px;padding:2rem;max-width:700px;width:100%;position:relative;max-height:90vh;overflow-y:auto;">
+    
+    <!-- Fechar -->
+    <button onclick="fecharPainel()" style="position:absolute;top:1rem;right:1rem;background:rgba(255,255,255,0.06);border:none;color:#8892a4;width:32px;height:32px;border-radius:8px;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;">✕</button>
+    <button onclick="carregarDados()" style="position:absolute;top:1rem;right:3.5rem;background:rgba(79,142,247,0.1);border:1px solid rgba(79,142,247,0.3);color:#4f8ef7;padding:4px 12px;border-radius:8px;cursor:pointer;font-size:0.78rem;font-weight:600;">↻ Atualizar</button>
+
+    <!-- Header -->
+    <div style="margin-bottom:1.5rem;">
+      <div style="font-size:0.7rem;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;color:#4f8ef7;margin-bottom:0.4rem;">Painel Exclusivo</div>
+      <h2 style="font-size:1.5rem;font-weight:800;letter-spacing:-0.03em;color:#f0f4ff;">R8 Analytics</h2>
+      <p id="painel-status" style="font-size:0.82rem;color:#8892a4;margin-top:0.25rem;"></p>
+    </div>
+
+    <!-- Cards de resumo -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:1.5rem;">
+      <div style="background:#252d40;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:1.25rem;">
+        <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8892a4;margin-bottom:0.5rem;">Testes Concluídos</div>
+        <div id="painel-total" style="font-size:2.5rem;font-weight:900;letter-spacing:-0.04em;background:linear-gradient(135deg,#4f8ef7,#7c5cfc);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;">0</div>
+      </div>
+      <div style="background:#252d40;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:1.25rem;">
+        <div style="font-size:0.72rem;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#8892a4;margin-bottom:0.5rem;">Acesse o Painel</div>
+        <div style="font-size:0.78rem;color:#8892a4;line-height:1.6;">
+          <span style="color:#f0f4ff;font-weight:600;">r8perfil.com.br</span><br>
+          <span style="color:#4f8ef7">#painel</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Perfis mais escolhidos -->
+    <div style="background:#252d40;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:1.25rem;margin-bottom:12px;">
+      <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8892a4;margin-bottom:1rem;">🏆 Perfis Mais Escolhidos</div>
+      <div id="painel-perfis"><p style="color:#8892a4;font-size:0.85rem;">Carregando...</p></div>
+    </div>
+
+    <!-- Cidades -->
+    <div style="background:#252d40;border:1px solid rgba(255,255,255,0.07);border-radius:14px;padding:1.25rem;">
+      <div style="font-size:0.72rem;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#8892a4;margin-bottom:1rem;">📍 Top Cidades</div>
+      <div id="painel-cidades"><p style="color:#8892a4;font-size:0.85rem;">Carregando...</p></div>
+    </div>
+
+    <!-- Link para planilha -->
+    <div style="margin-top:1rem;text-align:center;">
+      <a href="https://docs.google.com/spreadsheets/d/1MPh_EdmX3xnDT6ISpuxRr9uZhH6uVWJ1_Rxv147Zwtc" target="_blank" style="font-size:0.78rem;color:#4f8ef7;text-decoration:none;">📊 Ver planilha completa no Google Sheets →</a>
+    </div>
+  </div>
+</div>
+
 </body>
 </html>
