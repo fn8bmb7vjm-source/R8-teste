@@ -592,6 +592,73 @@ footer a:hover { color: var(--text); }
 .footer-logo { font-size: 1.2rem; font-weight: 900; color: var(--text); margin-bottom: 0.5rem; letter-spacing: -0.03em; }
 .footer-logo span { color: var(--accent); }
 
+/* ── NOME STEP ── */
+.nome-step {
+  display: none;
+  padding: 2rem;
+}
+.nome-step.active { display: block; }
+
+.nome-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.02em;
+}
+.nome-sub {
+  font-size: 0.88rem;
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+  line-height: 1.6;
+}
+.nome-input {
+  width: 100%;
+  padding: 0.85rem 1.1rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 10px;
+  font-family: var(--sans);
+  font-size: 1rem;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+  margin-bottom: 1.25rem;
+}
+.nome-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(79,142,247,0.15);
+}
+.nome-input::placeholder { color: var(--muted); }
+.btn-ver-resultado {
+  width: 100%;
+  padding: 0.9rem;
+  background: linear-gradient(135deg, var(--accent), var(--accent2));
+  border: none;
+  border-radius: 10px;
+  color: #fff;
+  font-family: var(--sans);
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.15s;
+  box-shadow: 0 4px 20px rgba(79,142,247,0.3);
+}
+.btn-ver-resultado:hover { opacity: 0.88; transform: translateY(-1px); }
+.btn-pular {
+  width: 100%;
+  margin-top: 0.75rem;
+  padding: 0.6rem;
+  background: none;
+  border: none;
+  color: var(--muted);
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.btn-pular:hover { color: var(--text); }
+
 /* ── ANIMATIONS ── */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(18px); }
@@ -872,6 +939,16 @@ footer a:hover { color: var(--text); }
         </div>
       </div><!-- /quiz-area -->
 
+      <!-- NOME -->
+      <div class="nome-step" id="nome-step">
+        <div style="font-size:2rem;margin-bottom:1rem;">🎯</div>
+        <p class="nome-title">Seu resultado está pronto!</p>
+        <p class="nome-sub">Antes de ver, nos diga seu nome — assim conseguimos personalizar sua experiência e entrar em contato se você se inscrever na R8.</p>
+        <input type="text" class="nome-input" id="nome-input" placeholder="Seu nome completo" maxlength="80">
+        <button class="btn-ver-resultado" onclick="confirmarNome()">Ver meu resultado →</button>
+        <button class="btn-pular" onclick="confirmarNome(true)">Pular, quero ver sem informar</button>
+      </div>
+
       <!-- RESULTADO -->
       <div class="result-box" id="result-box">
         <div class="res-badge" id="res-badge">🎯 Seu perfil</div>
@@ -992,7 +1069,7 @@ function updateUI() {
 }
 
 function nextQ() {
-  if (cur === total-1) { showResult(); return; }
+  if (cur === total-1) { mostrarNome(); return; }
   qSteps()[cur].classList.remove('active');
   cur++;
   qSteps()[cur].classList.add('active');
@@ -1021,9 +1098,9 @@ document.querySelectorAll('.opt').forEach(btn => {
   });
 });
 
-const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbx8y-JvRF9zAGh63gNf6bgsaODWp6a8c7h6StGB90cZQf5MEQJMGrs4q0tZXYJme3mH/exec';
+const SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxWB7sWlGRkyMLUQ-xf7Lp-bQzpcbFYDCJZlLiuUa6819tYJQSpJVbKRjdJz3WinEDE/exec';
 
-async function registrarResultado(perfil) {
+async function registrarResultado(perfil, nome) {
   try {
     let cidade = 'Desconhecida', estado = 'Desconhecido', pais = 'Brasil';
     try {
@@ -1037,6 +1114,7 @@ async function registrarResultado(perfil) {
     // Envia via GET com parametros na URL (sem problemas de CORS)
     const url = SCRIPT_URL
       + '?acao=salvar'
+      + '&nome='   + encodeURIComponent(nome || 'Não informado')
       + '&perfil=' + encodeURIComponent(perfil)
       + '&cidade=' + encodeURIComponent(cidade)
       + '&estado=' + encodeURIComponent(estado)
@@ -1046,13 +1124,27 @@ async function registrarResultado(perfil) {
   } catch(e) {}
 }
 
-function showResult() {
+function mostrarNome() {
+  // Hide quiz, show name step
+  document.querySelector('.quiz-head').style.display = 'none';
+  document.getElementById('quiz-area').querySelector('.quiz-body').style.display = 'none';
+  document.getElementById('quiz-area').querySelector('.quiz-nav').style.display = 'none';
+  document.getElementById('nome-step').classList.add('active');
+  document.getElementById('nome-input').focus();
+}
+
+function confirmarNome(pular) {
+  const nome = pular ? '' : (document.getElementById('nome-input').value.trim());
+  showResult(nome);
+}
+
+function showResult(nome) {
   document.getElementById('quiz-area').style.display = 'none';
   const sorted = Object.entries(scores).sort((a,b) => b[1]-a[1]);
   const top = sorted[0][0]; const maxS = sorted[0][1];
   const p = profiles[top];
 
-  registrarResultado(p.name);
+  registrarResultado(p.name, nome || '');
 
   document.getElementById('res-badge').textContent = '\u{1F3AF} ' + p.badge;
   document.getElementById('res-title').textContent = p.name;
@@ -1185,6 +1277,11 @@ function restart() {
   document.querySelectorAll('.opt').forEach(b => b.classList.remove('sel'));
   qSteps().forEach((s,i) => s.classList.toggle('active', i===0));
   document.getElementById('result-box').style.display = 'none';
+  document.getElementById('nome-step').classList.remove('active');
+  document.getElementById('nome-input').value = '';
+  document.querySelector('.quiz-head').style.display = 'block';
+  document.getElementById('quiz-area').querySelector('.quiz-body').style.display = 'block';
+  document.getElementById('quiz-area').querySelector('.quiz-nav').style.display = 'flex';
   document.getElementById('quiz-area').style.display = 'block';
   updateUI();
   document.getElementById('quiz').scrollIntoView({ behavior:'smooth' });
@@ -1251,4 +1348,3 @@ updateUI();
 
 </body>
 </html>
-
