@@ -1033,11 +1033,18 @@ async function registrarResultado(perfil) {
       estado = geoData.region || 'Desconhecido';
       pais   = geoData.country_name || 'Brasil';
     } catch(e) {}
+
+    // Envia via form URL-encoded (compatível com no-cors + Apps Script)
+    const params = new URLSearchParams();
+    params.append('perfil', perfil);
+    params.append('cidade', cidade);
+    params.append('estado', estado);
+    params.append('pais', pais);
+
     await fetch(SCRIPT_URL, {
       method: 'POST',
       mode: 'no-cors',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ perfil, cidade, estado, pais })
+      body: params
     });
   } catch(e) {}
 }
